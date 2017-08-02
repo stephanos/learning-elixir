@@ -3,7 +3,9 @@ defmodule Issues.CLI do
     @default_count 4
 
     def run(argv) do
-        parse_args(argv)
+        argv
+        |> parse_args
+        |> process
     end
 
     def parse_args(argv) do
@@ -19,4 +21,30 @@ defmodule Issues.CLI do
             _   -> :help
         end
     end 
+
+    def process(:help) do
+        IO.puts """
+        usage:  issues <user> <project> [ count | #{@default_count} ]
+        """
+        System.halt(0)
+    end
+
+    def process({user, project, _count}) do
+        Issues.GitHub.fetch(user, project)
+        |> decode_response
+        |> convert_to_list_of_maps
+    end
+
+    def convert_to_list_of_maps(list) do
+        list
+        |> Enum.map(&Enum.into(&1, Map.new))
+    end
+
+    def decode_response({:ok, body}), do: body
+
+    def decode_response({:error, error}) do
+        {_, message} = List.keyfind(error, "message", 0)
+        IO.puts "Error fetching from Github: #{message}"
+        System.halt(2)
+    end
 end
